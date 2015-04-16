@@ -4,7 +4,11 @@
 #include <stdbool.h>
 #include <immintrin.h>
 #include <assert.h>
+#ifdef __APPLE__
+#include <SDL2/SDL.h>
+#else
 #include "SDL.h"
+#endif
 
 #define WIDTH 800
 #define ITERATIONS 350 // TODO: should depend on s
@@ -97,7 +101,7 @@ int main() {
       }
     }
 
-    s *= 0.97;
+    s *= 0.975;
 
     SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(*pixels));
 
