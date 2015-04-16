@@ -4,14 +4,13 @@
 #include <stdbool.h>
 #include <immintrin.h>
 #include <assert.h>
-#include <SDL2/SDL.h>
+#include "SDL.h"
 
 #define WIDTH 800
 #define ITERATIONS 350 // TODO: should depend on s
 
 static double const ITERATIONS_TO_COLOR = 255.0 / (double) ITERATIONS;
 
-static __m256d _2d;
 static __m256d _4d;
 static __m256i _7i;
 static __m256i _16i;
@@ -21,12 +20,12 @@ static void color256(__m256d const a0s, __m256d const b0s, uint32_t * const out)
   __m256d as = a0s, bs = b0s;
   __m256i cs = _ITERi;
 
-  for (uint64_t i = 0; i < ITERATIONS; i++) {
-    __m256d const asas = _mm256_mul_pd(as, as);
-    __m256d const bsbs = _mm256_mul_pd(bs, bs);
+  __m256d asqr = _mm256_mul_pd(as, as);
+  __m256d bsqr = _mm256_mul_pd(bs, bs);
 
+  for (uint64_t i = 0; i < ITERATIONS; i++) {
     __m256i const mask4 = _mm256_castpd_si256
-      (_mm256_cmp_pd(_mm256_add_pd(asas, bsbs), _4d, _CMP_GT_OQ));
+      (_mm256_cmp_pd(_mm256_add_pd(asqr, bsqr), _4d, _CMP_GT_OQ));
     __m256i const maskITER = _mm256_cmpeq_epi64(cs, _ITERi);
     __m256i const mask = _mm256_and_si256(maskITER, mask4);
 
@@ -36,9 +35,13 @@ static void color256(__m256d const a0s, __m256d const b0s, uint32_t * const out)
     if (_mm256_testz_si256(maskITER, maskITER))
       break;
 
-    __m256d const temp = _mm256_add_pd(_mm256_sub_pd(asas, bsbs), a0s);
-    bs = _mm256_add_pd(_mm256_mul_pd(_mm256_mul_pd(as, bs), _2d), b0s);
-    as = temp;
+    bs = _mm256_mul_pd(as, bs);
+    bs = _mm256_add_pd(_mm256_add_pd(bs, bs), b0s);
+
+    as = _mm256_add_pd(_mm256_sub_pd(asqr, bsqr), a0s);
+
+    asqr = _mm256_mul_pd(as, as);
+    bsqr = _mm256_mul_pd(bs, bs);
   }
 
   cs = _mm256_castpd_si256(_mm256_mul_pd(_mm256_castsi256_pd(cs), _mm256_set1_pd(ITERATIONS_TO_COLOR)));
@@ -52,7 +55,6 @@ static void color256(__m256d const a0s, __m256d const b0s, uint32_t * const out)
 }
 
 int main() {
-  _2d = _mm256_set1_pd(2);
   _4d = _mm256_set1_pd(4);
   _7i = _mm256_set1_epi64x(6);
   _16i = _mm256_set1_epi64x(16);
